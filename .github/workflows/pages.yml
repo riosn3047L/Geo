@@ -29,7 +29,7 @@ jobs:
           APP_ICON_URL: ${{ vars.APP_ICON_URL }}
         run: |
           if [ -n "$APP_NAME" ] || [ -n "$APP_ICON_URL" ]; then
-            node -e 'const fs=require("fs");const n=process.env.APP_NAME||"GeoStamp";const i=process.env.APP_ICON_URL||"assets/icon.png";fs.writeFileSync("config.js","window.APP_CONFIG = "+JSON.stringify({appName:n,appIcon:i},null,2)+";\n")'
+            node -e 'const fs=require("fs");const n=process.env.APP_NAME||"Geotag Pics";const i=process.env.APP_ICON_URL||"assets/icon.png";fs.writeFileSync("config.js","window.APP_CONFIG = "+JSON.stringify({appName:n,appIcon:i},null,2)+";\n")'
           fi
 
       - uses: actions/configure-pages@v5

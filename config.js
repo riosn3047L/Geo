@@ -2,6 +2,6 @@
 // (Settings → Secrets and variables → Actions → Variables) and the deploy
 // workflow will overwrite this file.
 window.APP_CONFIG = {
-  appName: "GPS Map Camera",
-  appIcon: "icon.png",
+  appName: "Geotag Pics",
+  appIcon: "assets/icon.png",
 };

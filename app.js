@@ -4,7 +4,7 @@
 
   const root = typeof window !== "undefined" ? window : globalThis;
   const CONFIG = Object.assign(
-    { appName: "GeoStamp", appIcon: "assets/icon.png" },
+    { appName: "Geotag Pics", appIcon: "assets/icon.png" },
     root.APP_CONFIG || {}
   );
 
