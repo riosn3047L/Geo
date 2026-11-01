@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoStamp</title>
+<meta name="description" content="Add custom location and date stamps to photos, right in your browser. Nothing is uploaded.">
+<link rel="icon" href="assets/icon.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="app-header">
+  <img id="appIcon" src="assets/icon.svg" alt="">
+  <div>
+    <span class="app-name">GeoStamp</span>
+    <p class="tagline">Add custom location &amp; date stamps to photos</p>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="col-preview" aria-labelledby="h-preview">
+    <div class="card preview-card">
+      <h2 id="h-preview">Preview</h2>
+      <div class="canvas-wrap"><canvas id="previewCanvas"></canvas></div>
+      <button type="button" id="downloadBtn" class="btn btn-primary btn-block">Download geotagged JPG</button>
+      <p id="status" aria-live="polite"></p>
+      <p class="note">Photos are processed on your device and never uploaded.</p>
+    </div>
+  </section>
+
+  <div class="col-form">
+    <section class="card" aria-labelledby="h-photo">
+      <h2 id="h-photo">Photo</h2>
+      <label class="drop" for="photoInput">
+        <span class="drop-title">Choose photo</span>
+        <span class="hint">No photo? A blank dark image is used.</span>
+        <input type="file" id="photoInput" accept="image/*">
+      </label>
+    </section>
+
+    <section class="card" aria-labelledby="h-place">
+      <h2 id="h-place">Place</h2>
+      <div class="field">
+        <label for="placeTitle">Place title</label>
+        <input type="text" id="placeTitle" autocomplete="off">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="countryCode">Country code</label>
+          <input type="text" id="countryCode" maxlength="2" placeholder="IN" autocomplete="off">
+        </div>
+        <div class="field check-field">
+          <label class="check" for="showFlag"><input type="checkbox" id="showFlag" checked> Show flag</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="address">Address</label>
+        <textarea id="address" rows="2"></textarea>
+      </div>
+      <button type="button" id="autoAddressBtn" class="btn btn-secondary">Fill from coordinates</button>
+    </section>
+
+    <section class="card" aria-labelledby="h-coords">
+      <h2 id="h-coords">Coordinates</h2>
+      <div class="row">
+        <div class="field">
+          <label for="lat">Latitude</label>
+          <input type="number" id="lat" step="any" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="lng">Longitude</label>
+          <input type="number" id="lng" step="any" inputmode="decimal">
+        </div>
+      </div>
+      <button type="button" id="myLocationBtn" class="btn btn-secondary">Use my location</button>
+      <div id="map"></div>
+      <p class="caption">Tap the map or drag the pin</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-date">
+      <h2 id="h-date">Date &amp; time</h2>
+      <div class="row">
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label for="time">Time</label>
+          <input type="time" id="time">
+        </div>
+      </div>
+      <div class="field">
+        <label for="tzOffset">Timezone (GMT)</label>
+        <select id="tzOffset"></select>
+      </div>
+      <button type="button" id="nowBtn" class="btn btn-secondary">Now</button>
+    </section>
+  </div>
+</main>
+
+<footer class="app-footer">Map imagery © Esri · Geocoding © OpenStreetMap contributors</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
