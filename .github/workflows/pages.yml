@@ -23,14 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Write config.js from repo variables
+      - name: Apply repo variables to config.js (only the ones that are set)
         env:
           APP_NAME: ${{ vars.APP_NAME }}
           APP_ICON_URL: ${{ vars.APP_ICON_URL }}
         run: |
-          if [ -n "$APP_NAME" ] || [ -n "$APP_ICON_URL" ]; then
-            node -e 'const fs=require("fs");const n=process.env.APP_NAME||"Geotag Pics";const i=process.env.APP_ICON_URL||"assets/icon.png";fs.writeFileSync("config.js","window.APP_CONFIG = "+JSON.stringify({appName:n,appIcon:i},null,2)+";\n")'
-          fi
+          node -e '
+            const fs = require("fs");
+            let s = fs.readFileSync("config.js", "utf8");
+            const set = (key, val) => {
+              if (val) s = s.replace(new RegExp(key + ":\\s*\"[^\"]*\""), key + ": " + JSON.stringify(val));
+            };
+            set("appName", process.env.APP_NAME);
+            set("appIcon", process.env.APP_ICON_URL);
+            fs.writeFileSync("config.js", s);
+          '
+          cat config.js
 
       - uses: actions/configure-pages@v5
 

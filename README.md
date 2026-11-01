@@ -1,6 +1,6 @@
-# Geotag Pics
+# GPS Map Camera
 
-Geotag Pics lets you pick a photo, add a custom place title, address, latitude/longitude, date, time and timezone, preview the stamp, and download a JPG with GPS and date EXIF data. Everything runs client-side in the browser; no photos are uploaded.
+GPS Map Camera lets you pick a photo, add a custom place title, address, latitude/longitude, date, time and timezone, preview the stamp, and download a JPG with GPS and date EXIF data. Everything runs client-side in the browser; no photos are uploaded.
 
 **Live site:** https://riosn3047l.github.io/Geo/
 
