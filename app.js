@@ -4,7 +4,7 @@
 
   const root = typeof window !== "undefined" ? window : globalThis;
   const CONFIG = Object.assign(
-    { appName: "GeoStamp", appIcon: "assets/icon.svg" },
+    { appName: "GeoStamp", appIcon: "assets/icon.png" },
     root.APP_CONFIG || {}
   );
 
@@ -799,7 +799,8 @@
     document.querySelectorAll(".app-name").forEach((el) => { el.textContent = CONFIG.appName; });
     const iconEl = $("appIcon");
     if (iconEl) iconEl.src = CONFIG.appIcon;
-    document.title = document.title || CONFIG.appName;
+    document.querySelectorAll("link[rel~=icon], link[rel=apple-touch-icon]").forEach((l) => { l.href = CONFIG.appIcon; });
+    document.title = CONFIG.appName;
 
     // defaults
     $("placeTitle").value = "Krishnan Kovil, Tamil Nadu, India";

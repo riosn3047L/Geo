@@ -3,5 +3,5 @@
 // workflow will overwrite this file.
 window.APP_CONFIG = {
   appName: "GeoStamp",
-  appIcon: "assets/icon.svg",
+  appIcon: "assets/icon.png",
 };
