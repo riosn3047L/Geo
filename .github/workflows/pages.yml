@@ -1,0 +1,42 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write config.js from repo variables
+        env:
+          APP_NAME: ${{ vars.APP_NAME }}
+          APP_ICON_URL: ${{ vars.APP_ICON_URL }}
+        run: |
+          if [ -n "$APP_NAME" ] || [ -n "$APP_ICON_URL" ]; then
+            node -e 'const fs=require("fs");const n=process.env.APP_NAME||"GeoStamp";const i=process.env.APP_ICON_URL||"assets/icon.svg";fs.writeFileSync("config.js","window.APP_CONFIG = "+JSON.stringify({appName:n,appIcon:i},null,2)+";\n")'
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - uses: actions/deploy-pages@v4
+        id: deployment
