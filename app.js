@@ -223,19 +223,6 @@
     ctx.closePath();
   }
 
-  // Shrink to minPx (px * minRatio), then ellipsize. Leaves ctx.font set. Returns drawn text.
-  function fitLine(ctx, text, weight, px, minPx, maxW) {
-    ctx.font = fontStr(weight, px);
-    const w = ctx.measureText(text).width;
-    let size = px;
-    if (w > maxW) size = Math.max(minPx, (px * maxW) / w);
-    ctx.font = fontStr(weight, size);
-    if (ctx.measureText(text).width <= maxW) return text;
-    let t = text;
-    while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
-    return t.trimEnd() + "…";
-  }
-
   function drawPinAndCone(ctx, cx, cy, u) {
     // direction cone, pointing down-left from the pin tip
     const R = 125 * u;
@@ -280,7 +267,7 @@
 
   function drawThumbnail(ctx, x, y, size, u, sat) {
     ctx.save();
-    roundRectPath(ctx, x, y, size, size, 14 * u);
+    roundRectPath(ctx, x, y, size, size, 10 * u);
     ctx.clip();
     if (sat) {
       ctx.imageSmoothingEnabled = true;
@@ -294,98 +281,196 @@
     ctx.restore();
   }
 
+  // Trim text with an ellipsis until it fits maxW (ctx.font must be set).
+  function ellipsize(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    let t = text;
+    while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+    return t.trimEnd() + "…";
+  }
+
+  // Greedy word-wrap. Breaks on spaces and after commas; overlong pieces break by character.
+  // Returns array of lines (ctx.font must be set).
+  function wrapText(ctx, text, maxW) {
+    const pieces = [];
+    text.split(/\s+/).filter(Boolean).forEach((word) => {
+      const parts = word.split(/(?<=,)(?=.)/);
+      parts.forEach((p, i) => pieces.push({ text: p, space: i === 0 }));
+    });
+    const lines = [];
+    let line = "";
+    const push = (s) => { lines.push(s); line = ""; };
+    pieces.forEach((p) => {
+      const cand = line ? line + (p.space ? " " : "") + p.text : p.text;
+      if (ctx.measureText(cand).width <= maxW) { line = cand; return; }
+      if (line) push(line);
+      let rest = p.text;
+      while (ctx.measureText(rest).width > maxW && rest.length > 1) {
+        let n = rest.length - 1;
+        while (n > 1 && ctx.measureText(rest.slice(0, n)).width > maxW) n--;
+        push(rest.slice(0, n));
+        rest = rest.slice(n);
+      }
+      line = rest;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+
   function drawStamp(ctx, W, H, st, assets) {
-    const u = Math.min(W / 2000, H / 1500);
-    const blockW = 1530 * u;
-    const left = (W - blockW) / 2;
-    const right = left + blockW;
-    const textX = left + 410 * u;
-    const textMaxW = right - textX;
+    // All geometry below is in reference units (u = min(W,H)/1500), via a scale transform.
+    const u = Math.min(W, H) / 1500;
+    const Wu = W / u;
+    const Hu = H / u;
+    const M = 352;          // map size
+    const G = 31;           // gap map/panel and bottom margin
+    const B = Math.min(1545, Wu - 2 * 81);
+    const blockLeft = (Wu - B) / 2;
+    const blockRight = blockLeft + B;
+    const mapRight = blockLeft + M;
+    const panelX = mapRight + G;
+    const panelW = blockRight - panelX;
+    const bottom = Hu - G;
+    const TEXT_PAD_L = 27;
+    const TEXT_PAD_R = 24;
+    const PAD_Y = 26;
+    const textMaxW = Math.max(40, panelW - TEXT_PAD_L - TEXT_PAD_R);
+    const TITLE_LH = 72;
+    const BODY_LH = 47;
+    const TITLE_PX = 62;
+    const BODY_PX = 40;
 
-    // readability panel
     ctx.save();
-    roundRectPath(ctx, left + 390 * u, H - 448 * u, 1160 * u, 417 * u, 16 * u);
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    ctx.fill();
-    ctx.restore();
-
-    drawThumbnail(ctx, left, H - 383 * u, 352 * u, u, assets.sat);
-
-    ctx.save();
+    ctx.scale(u, u);
     ctx.textBaseline = "alphabetic";
     ctx.textAlign = "left";
-    ctx.fillStyle = "#fff";
-    ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = 4 * u;
-    ctx.shadowOffsetY = 1 * u;
 
-    // --- title (+ flag)
-    const baseTitle = 62 * u;
+    // ---- layout (measure first so the panel can grow upward)
     const flag = assets.flag;
+    const hasFlag = !!(flag && (flag.img || flag.emoji));
+    let titlePx = TITLE_PX;
+    let titleLines;
+    let flagOnLast = false; // flag shares the last title line
     let flagW = 0;
-    const flagH0 = 50 * u;
-    if (flag && flag.img) {
-      const asp = flag.img.naturalWidth / flag.img.naturalHeight || 1.5;
-      flagW = Math.min(flagH0 * asp, 100 * u);
-    } else if (flag && flag.emoji) {
-      ctx.font = fontStr(500, baseTitle);
-      flagW = ctx.measureText(flag.emoji).width;
-    }
-    ctx.font = fontStr(500, baseTitle);
-    const space0 = ctx.measureText(" ").width;
-    const tw0 = ctx.measureText(st.title).width;
-    const extra0 = flag ? space0 + flagW : 0;
-    const k = Math.min(1, textMaxW / Math.max(1, tw0 + extra0));
-    const titleSize = Math.max(baseTitle * 0.5, baseTitle * k);
-    const scale = titleSize / baseTitle;
-    const extra = extra0 * scale;
-    const titleText = fitLine(ctx, st.title, 500, titleSize, titleSize, textMaxW - extra);
-    const titleBase = H - 258 * u;
-    ctx.fillText(titleText, textX, titleBase);
-    if (flag) {
-      const fx = textX + ctx.measureText(titleText).width + space0 * scale;
-      const fh = flagH0 * scale;
-      const fy = titleBase - titleSize * 0.36 - fh / 2;
-      if (flag.img) {
-        ctx.save();
-        ctx.shadowColor = "transparent";
-        roundRectPath(ctx, fx, fy, flagW * scale, fh, 5 * u * scale);
-        ctx.clip();
-        ctx.drawImage(flag.img, fx, fy, flagW * scale, fh);
-        ctx.restore();
-      } else {
-        ctx.fillText(flag.emoji, fx, titleBase);
+    const flagH = 48;
+    for (;;) {
+      ctx.font = fontStr(400, titlePx);
+      const sp = ctx.measureText(" ").width;
+      flagW = 0;
+      if (hasFlag) {
+        if (flag.img) {
+          const asp = flag.img.naturalWidth / flag.img.naturalHeight || 1.46;
+          flagW = Math.min(flagH * asp, 90);
+        } else {
+          flagW = ctx.measureText(flag.emoji).width;
+        }
       }
+      titleLines = st.title ? wrapText(ctx, st.title, textMaxW) : [];
+      const tooLong = titleLines.some((l) => ctx.measureText(l).width > textMaxW + 0.5);
+      if (tooLong && titlePx > 48) { titlePx = Math.max(48, titlePx - 2); continue; }
+      if (hasFlag) {
+        const last = titleLines.length ? ctx.measureText(titleLines[titleLines.length - 1]).width : 0;
+        if (titleLines.length && last + sp + flagW <= textMaxW) flagOnLast = true;
+        else { flagOnLast = false; titleLines.push(null); } // flag alone on its own line
+      }
+      break;
     }
+    titleLines = titleLines.map((l) => (l === null ? null : ellipsize(ctx, l, textMaxW)));
+    if (!hasFlag) flagOnLast = false;
 
-    // --- address, coordinates, date
-    const small = 40 * u;
-    const addr = fitLine(ctx, st.address, 400, small, small * 0.7, textMaxW);
-    ctx.fillText(addr, textX, H - 200 * u);
+    ctx.font = fontStr(400, BODY_PX);
+    let addrLines = st.address ? wrapText(ctx, st.address, textMaxW) : [];
+    if (addrLines.length > 4) {
+      const lastText = addrLines.slice(3).join(" ");
+      addrLines = addrLines.slice(0, 3).concat(ellipsize(ctx, lastText + "…", textMaxW));
+    }
+    const coordText = ellipsize(ctx, `Lat ${st.latStr}° Long ${st.lngStr}°`, textMaxW);
+    const dateText = ellipsize(ctx, st.dateLine, textMaxW);
+    const bodyLines = addrLines.concat(coordText, dateText);
 
-    const coords = fitLine(ctx, `Lat ${st.latStr}° Long ${st.lngStr}°`, 400, small, small * 0.7, textMaxW);
-    ctx.fillText(coords, textX, H - 150 * u);
+    const contentH = titleLines.length * TITLE_LH + bodyLines.length * BODY_LH;
+    const panelH = Math.max(M, contentH + 2 * PAD_Y);
+    const panelY = bottom - panelH;
 
-    const dateLine = fitLine(ctx, st.dateLine, 400, small, small * 0.7, textMaxW);
-    ctx.fillText(dateLine, textX, H - 100 * u);
-
-    // --- app badge, right aligned
-    const badgePx = 28 * u;
+    // ---- badge tab geometry
+    const TAB_H = 67;
+    const ICON = 38;
     const name = CONFIG.appName;
-    ctx.font = fontStr(500, badgePx);
+    ctx.font = fontStr(500, 28);
     const nameW = ctx.measureText(name).width;
-    const cy = H - 417 * u;
-    const iconSz = 38 * u;
-    const gap = 14 * u;
     const hasIcon = !!assets.icon;
-    const nameX = right - nameW;
-    ctx.fillText(name, nameX, cy + badgePx * 0.35);
+    const tabW = 14 + (hasIcon ? ICON + 15 : 0) + nameW + 15;
+    const tabX = Math.max(panelX + 14, blockRight - tabW);
+    const tabY = panelY - TAB_H;
+
+    // ---- panel + tab as one shape
+    ctx.fillStyle = "rgba(0,0,0,0.68)";
+    ctx.beginPath();
+    ctx.moveTo(panelX + 14, panelY);
+    ctx.lineTo(tabX, panelY);
+    ctx.lineTo(tabX, tabY + 14);
+    ctx.arcTo(tabX, tabY, tabX + 14, tabY, 14);
+    ctx.lineTo(blockRight - 14, tabY);
+    ctx.arcTo(blockRight, tabY, blockRight, tabY + 14, 14);
+    ctx.lineTo(blockRight, bottom - 14);
+    ctx.arcTo(blockRight, bottom, blockRight - 14, bottom, 14);
+    ctx.lineTo(panelX + 14, bottom);
+    ctx.arcTo(panelX, bottom, panelX, bottom - 14, 14);
+    ctx.lineTo(panelX, panelY + 14);
+    ctx.arcTo(panelX, panelY, panelX + 14, panelY, 14);
+    ctx.closePath();
+    ctx.fill();
+
+    // ---- map thumbnail
+    drawThumbnail(ctx, blockLeft, bottom - M, M, 1, assets.sat);
+
+    // ---- badge contents
+    ctx.fillStyle = "#fff";
+    let bx = tabX + 14;
     if (hasIcon) {
       try {
-        ctx.shadowColor = "transparent";
-        ctx.drawImage(assets.icon, nameX - gap - iconSz, cy - iconSz / 2, iconSz, iconSz);
+        ctx.drawImage(assets.icon, bx, tabY + (TAB_H - ICON) / 2, ICON, ICON);
       } catch (e) { /* unsupported icon format; skip */ }
+      bx += ICON + 15;
     }
+    ctx.font = fontStr(500, 28);
+    ctx.fillText(name, bx, tabY + TAB_H / 2 + 28 * 0.35);
+
+    // ---- text
+    const textX = panelX + TEXT_PAD_L;
+    let y = panelY + (panelH - contentH) / 2;
+    ctx.fillStyle = "#fff";
+    ctx.font = fontStr(400, titlePx);
+    const sp = ctx.measureText(" ").width;
+    titleLines.forEach((line, i) => {
+      const lineTop = y + i * TITLE_LH;
+      const base = lineTop + (TITLE_LH - titlePx) / 2 + titlePx * 0.82;
+      let fx = textX;
+      if (line !== null) {
+        ctx.fillText(line, textX, base);
+        fx = textX + ctx.measureText(line).width + sp;
+      }
+      const isFlagLine = hasFlag && i === titleLines.length - 1 && (flagOnLast || line === null);
+      if (isFlagLine) {
+        if (flag.img) {
+          const fy = lineTop + (TITLE_LH - flagH) / 2;
+          ctx.save();
+          roundRectPath(ctx, fx, fy, flagW, flagH, 4);
+          ctx.clip();
+          ctx.drawImage(flag.img, fx, fy, flagW, flagH);
+          ctx.restore();
+        } else {
+          ctx.fillText(flag.emoji, fx, base);
+        }
+      }
+    });
+    y += titleLines.length * TITLE_LH;
+    ctx.font = fontStr(400, BODY_PX);
+    bodyLines.forEach((line, i) => {
+      const base = y + i * BODY_LH + (BODY_LH - BODY_PX) / 2 + BODY_PX * 0.82;
+      ctx.fillText(line, textX, base);
+    });
+
     ctx.restore();
   }
 
@@ -445,14 +530,16 @@
     ]);
     if (token !== renderToken) return false; // superseded by a newer render
 
-    const w = photo ? photo.w : DEFAULT_W;
-    const h = photo ? photo.h : DEFAULT_H;
+    const portrait = !photo && $("blankSize") && $("blankSize").value === "portrait";
+    const w = photo ? photo.w : portrait ? DEFAULT_H : DEFAULT_W;
+    const h = photo ? photo.h : portrait ? DEFAULT_W : DEFAULT_H;
     if (canvas.width !== w) canvas.width = w;
     if (canvas.height !== h) canvas.height = h;
     if (photo) {
       ctx.drawImage(photo.source, 0, 0, w, h);
     } else {
-      ctx.fillStyle = "#050308";
+      const bg = $("blankColor") ? $("blankColor").value : "";
+      ctx.fillStyle = /^#[0-9a-f]{6}$/i.test(bg) ? bg : "#ffffff";
       ctx.fillRect(0, 0, w, h);
     }
     try {
@@ -522,6 +609,15 @@
     } catch (e) {
       reportError(e);
     }
+  }
+
+  function clearPhoto() {
+    if (photo && photo.source && typeof photo.source.close === "function") photo.source.close();
+    photo = null;
+    $("photoInput").value = "";
+    validationShown = false;
+    setStatus("");
+    render().catch(reportError);
   }
 
   /* -------------------------------------------------------------- timezone */
@@ -828,6 +924,9 @@
     );
 
     $("photoInput").addEventListener("change", onPhotoChosen);
+    $("blankSize").addEventListener("change", scheduleRender);
+    $("blankColor").addEventListener("input", scheduleRender);
+    $("clearPhotoBtn").addEventListener("click", clearPhoto);
     $("autoAddressBtn").addEventListener("click", autoFillAddress);
     $("myLocationBtn").addEventListener("click", useMyLocation);
     $("nowBtn").addEventListener("click", () => { setNow(); scheduleRender(); });

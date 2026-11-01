@@ -35,9 +35,25 @@
       <h2 id="h-photo">Photo</h2>
       <label class="drop" for="photoInput">
         <span class="drop-title">Choose photo</span>
-        <span class="hint">No photo? A blank dark image is used.</span>
+        <span class="hint">No photo? A blank image is used.</span>
         <input type="file" id="photoInput" accept="image/*">
       </label>
+      <div class="blank-opts">
+        <div class="row">
+          <div class="field">
+            <label for="blankSize">Blank size</label>
+            <select id="blankSize">
+              <option value="landscape" selected>Landscape 4:3 (2000×1500)</option>
+              <option value="portrait">Portrait 3:4 (1500×2000)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="blankColor">Blank background</label>
+            <input type="color" id="blankColor" value="#ffffff">
+          </div>
+        </div>
+        <button type="button" id="clearPhotoBtn" class="btn btn-secondary">Remove photo</button>
+      </div>
     </section>
 
     <section class="card" aria-labelledby="h-place">
